@@ -2,8 +2,10 @@ import os
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 
+# 使用matplotlib绘画结果
 def cluster_and_show_results(features, image_names, image_folder, model):
     # 聚类
     labels = model.fit_predict(features)
@@ -30,3 +32,27 @@ def cluster_and_show_results(features, image_names, image_folder, model):
 
     plt.tight_layout()
     plt.show()
+
+
+# 在GUI界面中显示结果
+def cluster_and_return_image_groups(features, image_names, image_folder, model):
+    """
+    对图像特征进行聚类，并返回一个聚类标签到图像路径列表的映射。
+
+    参数：
+        features: 图像特征，是一个 numpy 数组。
+        image_names: 图像文件名列表。
+        image_folder: 图像所在文件夹路径。
+        model: 聚类模型（如 KMeans）。
+
+    返回：
+        一个 dict，键是类别标签（整数），值是该类对应图像的完整路径列表。
+    """
+    labels = model.fit_predict(features)
+    cluster_map = defaultdict(list)
+
+    for file, label in zip(image_names, labels):
+        path = os.path.join(image_folder, file)
+        cluster_map[label].append(path)
+
+    return dict(cluster_map)  # 转成普通 dict 方便 PyQt 使用
