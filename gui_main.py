@@ -1,7 +1,8 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QLabel,
-    QFileDialog, QSpinBox, QHBoxLayout, QMessageBox, QScrollArea
+    QFileDialog, QSpinBox, QHBoxLayout, QMessageBox, QScrollArea,
+    QComboBox
 )
 from PyQt5.QtWidgets import QGroupBox, QGridLayout, QFrame
 from PyQt5.QtGui import QFont
@@ -11,6 +12,9 @@ from features import features_extractor
 from models import KMeans, ResNet50
 from clustering import clutering_and_show_result
 from preprocess import image_preprocessor
+from models import Vit16
+from models import DBSCAN
+from clustering import clutering_and_show_result
 
 
 class ImageClusteringApp(QWidget):
@@ -22,6 +26,7 @@ class ImageClusteringApp(QWidget):
         self.k = 3
         self.init_ui()
 
+    # 界面设计函数
     def init_ui(self):
         main_layout = QVBoxLayout()
 
@@ -40,7 +45,7 @@ class ImageClusteringApp(QWidget):
         folder_layout.addWidget(self.btn_select_folder)
         main_layout.addLayout(folder_layout)
 
-        # 聚类参数选择
+        # KMeans聚类参数选择
         param_layout = QHBoxLayout()
         self.k_selector = QSpinBox()
         self.k_selector.setMinimum(2)
@@ -73,6 +78,23 @@ class ImageClusteringApp(QWidget):
 
         self.setLayout(main_layout)
 
+        # 模型选择区域
+        model_layout = QHBoxLayout()
+
+        # 特征模型选择
+        self.feature_combobox = QComboBox()
+        self.feature_combobox.addItems(["ResNet50", "ResNet18", "Vit16"])
+        model_layout.addWidget(QLabel("特征提取模型"))
+        model_layout.addWidget(self.feature_combobox)
+
+        # 聚类算法选择
+        self.cluster_combobox = QComboBox()
+        self.cluster_combobox.addItems(['KMeans', "DBSCAN"])
+        model_layout.addWidget(QLabel("聚类算法"))
+        model_layout.addWidget(self.cluster_combobox)
+
+        main_layout.addLayout(model_layout)
+
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "选择图片文件夹")
         if folder:
@@ -84,19 +106,40 @@ class ImageClusteringApp(QWidget):
             QMessageBox.warning(self, "错误", "请先选择图片文件夹")
             return
 
+        k = self.k_selector.value()
+        # 获取用户选择的模型
+        feature_model_name = self.feature_combobox.currentText()
+        cluster_model_name = self.cluster_combobox.currentText()
+
+        # 映射模型名称到类
+        feature_models = {
+            "ResNet50": ResNet50.load_ResNet50(),
+            "ResNet18": ResNet50.load_ResNet18(),
+            "Vit16": Vit16.load_Vit16()
+        }
+        cluster_models = {
+            "KMeans": KMeans.load_KMeans(k),
+            "DBSCAN": DBSCAN.load_DBSCAN(1.2, 5)
+        }
+        transform_models = {
+            "ResNet50": image_preprocessor.get_image_transform_for_resnet(),
+            "ResNet18": image_preprocessor.get_image_transform_for_resnet(),
+            "Vit16": image_preprocessor.get_image_transform_for_vit()
+        }
         try:
-            k = self.k_selector.value()
-            transform = image_preprocessor.get_image_transform()
-            feature_extractor = ResNet50.load_ResNet50()
+            # 获取相应的图片转换模型，特征提取模型，聚类模型
+            transform = transform_models[feature_model_name]
+            feature_extractor = feature_models[feature_model_name]
+
+            cluster_model = cluster_models[cluster_model_name]
+
             features, file_names = features_extractor.extract_features_from_folder(
                 self.folder, transform, feature_extractor
             )
-            model = KMeans.load_KMeans(k)
-
-            from clustering import clutering_and_show_result
             cluster_map = clutering_and_show_result.cluster_and_return_image_groups(
-                features, file_names, self.folder, model
+                features, file_names, self.folder, cluster_model
             )
+
             self.display_clusters(cluster_map)
 
         except Exception as e:
@@ -130,6 +173,7 @@ class ImageClusteringApp(QWidget):
 
 
 if __name__ == '__main__':
+    print("main")
     app = QApplication(sys.argv)
     win = ImageClusteringApp()
     win.show()
