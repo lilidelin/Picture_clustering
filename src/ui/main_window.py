@@ -1,8 +1,8 @@
-import sys
+from src.utils.clustering_thread import ClusteringThread
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel,
+    QWidget, QVBoxLayout, QPushButton, QLabel,
     QFileDialog, QSpinBox, QHBoxLayout, QMessageBox, QScrollArea,
-    QComboBox, QDoubleSpinBox
+    QComboBox, QDoubleSpinBox, QProgressBar
 )
 from PyQt5.QtWidgets import QGroupBox, QGridLayout, QFrame
 from PyQt5.QtGui import QFont
@@ -20,7 +20,7 @@ class ImageClusteringApp(QWidget):
         self.setWindowTitle("图片聚类程序")
         self.resize(1000, 700)
         self.folder = ""
-        self.k = 3
+        self.clustering_thread = None  # 存储聚类线程
         self.init_ui()
 
     # 界面设计函数
@@ -87,8 +87,17 @@ class ImageClusteringApp(QWidget):
         self.result_layout = QVBoxLayout()
         self.result_widget.setLayout(self.result_layout)
         self.result_area.setWidget(self.result_widget)
-
         main_layout.addWidget(self.result_area)
+
+        # 添加进度条
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_label = QLabel("准备就绪")
+        progress_layout = QHBoxLayout()
+        progress_layout.addWidget(self.progress_bar)
+        progress_layout.addWidget(self.progress_label)
+        main_layout.addLayout(progress_layout)
 
         self.setLayout(main_layout)
 
@@ -159,7 +168,11 @@ class ImageClusteringApp(QWidget):
             QMessageBox.warning(self, "错误", "请先选择图片文件夹")
             return
 
-        # 获取用户选择的模型
+        if self.clustering_thread and self.clustering_thread.isRunning():
+            QMessageBox.warning(self, "提示", "聚类正在进行中，请等待")
+            return
+
+            # 获取用户选择的模型
         feature_model_name = self.feature_combobox.currentText()
         cluster_model_name = self.cluster_combobox.currentText()
 
@@ -172,26 +185,57 @@ class ImageClusteringApp(QWidget):
             min_samples = self.min_samples_selector.value()
             cluster_params = {"eps": eps, "min_samples": min_samples}
 
-        # 创建模型实例
-        model_factory = ModelFactory()
-        feature_extractor = model_factory.get_feature_extractor(feature_model_name)
-        cluster_model = model_factory.get_cluster_model(cluster_model_name, cluster_params)
-        transform = ImageProcessor.get_image_transform(feature_model_name)
+        # 禁用按钮，防止重复点击
+        self.btn_cluster.setEnabled(False)
 
-        try:
-            # 提取特征
-            features, file_names = FileIO.extract_features_from_folder(
-                self.folder, transform, feature_extractor
-            )
-            # 聚类
-            cluster_map = Visualizer.cluster_and_return_image_groups(
-                features, file_names, self.folder, cluster_model
-            )
-            # 显示聚类结果
-            self.display_clusters(cluster_map)
+        # # 创建模型实例
+        # model_factory = ModelFactory()
+        # feature_extractor = model_factory.get_feature_extractor(feature_model_name)
+        # cluster_model = model_factory.get_cluster_model(cluster_model_name, cluster_params)
+        # transform = ImageProcessor.get_image_transform(feature_model_name)
+        #
+        # try:
+        #     # 提取特征
+        #     features, file_names = FileIO.extract_features_from_folder(
+        #         self.folder, transform, feature_extractor
+        #     )
+        #     # 聚类
+        #     cluster_map = Visualizer.cluster_and_return_image_groups(
+        #         features, file_names, self.folder, cluster_model
+        #     )
+        #     # 显示聚类结果
+        #     self.display_clusters(cluster_map)
+        #
+        # except Exception as e:
+        #     QMessageBox.critical(self, "出错啦", str(e))
 
-        except Exception as e:
-            QMessageBox.critical(self, "出错啦", str(e))
+        # 创建并启动聚类线程
+        self.clustering_thread=ClusteringThread(
+            self.folder,feature_model_name,cluster_model_name,cluster_params
+        )
+        self.clustering_thread.progress_updated.connect(self.update_progress)
+        self.clustering_thread.clustering_finished.connect(self.on_clustering_finished)
+        self.clustering_thread.error_occurrred.connect(self.on_clustering_error)
+        self.clustering_thread.start()
+
+    def update_progress(self, value, message):
+        """更新进度条和状态信息"""
+        self.progress_bar.setValue(value)
+        self.progress_label.setText(message)
+
+    def on_clustering_finished(self, cluster_map):
+        """聚类完成后的回调函数"""
+        self.display_clusters(cluster_map)
+        self.btn_cluster.setEnabled(True)
+        self.clustering_thread = None
+
+    def on_clustering_error(self, error_msg):
+        """聚类出错时的回调函数"""
+        QMessageBox.critical(self, "错误", error_msg)
+        self.progress_bar.setValue(0)
+        self.progress_label.setText("准备就绪")
+        self.btn_cluster.setEnabled(True)
+        self.clustering_thread = None
 
     def display_clusters(self, cluster_map):
         # 清空旧的内容
