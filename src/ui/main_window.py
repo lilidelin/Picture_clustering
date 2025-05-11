@@ -8,10 +8,7 @@ from PyQt5.QtWidgets import QGroupBox, QGridLayout, QFrame
 from PyQt5.QtGui import QFont
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
-from src.models.model_factory import ModelFactory
-import src.utils.image_processing as ImageProcessor
-import src.utils.visualization as Visualizer
-import src.utils.file_io as FileIO
+
 
 
 class ImageClusteringApp(QWidget):
@@ -188,30 +185,9 @@ class ImageClusteringApp(QWidget):
         # 禁用按钮，防止重复点击
         self.btn_cluster.setEnabled(False)
 
-        # # 创建模型实例
-        # model_factory = ModelFactory()
-        # feature_extractor = model_factory.get_feature_extractor(feature_model_name)
-        # cluster_model = model_factory.get_cluster_model(cluster_model_name, cluster_params)
-        # transform = ImageProcessor.get_image_transform(feature_model_name)
-        #
-        # try:
-        #     # 提取特征
-        #     features, file_names = FileIO.extract_features_from_folder(
-        #         self.folder, transform, feature_extractor
-        #     )
-        #     # 聚类
-        #     cluster_map = Visualizer.cluster_and_return_image_groups(
-        #         features, file_names, self.folder, cluster_model
-        #     )
-        #     # 显示聚类结果
-        #     self.display_clusters(cluster_map)
-        #
-        # except Exception as e:
-        #     QMessageBox.critical(self, "出错啦", str(e))
-
         # 创建并启动聚类线程
-        self.clustering_thread=ClusteringThread(
-            self.folder,feature_model_name,cluster_model_name,cluster_params
+        self.clustering_thread = ClusteringThread(
+            self.folder, feature_model_name, cluster_model_name, cluster_params
         )
         self.clustering_thread.progress_updated.connect(self.update_progress)
         self.clustering_thread.clustering_finished.connect(self.on_clustering_finished)

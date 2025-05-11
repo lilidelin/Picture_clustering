@@ -3,6 +3,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from src.utils.t_SNE import plot_tsne
 
 
 # 使用matplotlib绘画结果
@@ -49,6 +50,7 @@ def cluster_and_return_image_groups(features, image_names, image_folder, model):
         一个 dict，键是类别标签（整数），值是该类对应图像的完整路径列表。
     """
     labels = model.fit_predict(features)
+    plot_tsne(features, labels)
     cluster_map = defaultdict(list)
 
     for file, label in zip(image_names, labels):
