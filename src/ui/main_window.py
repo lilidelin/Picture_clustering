@@ -10,7 +10,6 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 
 
-
 class ImageClusteringApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -204,6 +203,7 @@ class ImageClusteringApp(QWidget):
         self.display_clusters(cluster_map)
         self.btn_cluster.setEnabled(True)
         self.clustering_thread = None
+        QMessageBox.information(self, "提示", "聚类完成，PDF 报告已生成: clustering_report.pdf")
 
     def on_clustering_error(self, error_msg):
         """聚类出错时的回调函数"""

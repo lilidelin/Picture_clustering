@@ -20,7 +20,8 @@ image-clustering-app/
 │   │   ├── image_processing.py # 图像处理
 │   │   ├── visualization.py # 可视化工具
 │   │   ├── t_SNE.py         # 可视化特征
-│   │   └── clustering_thread.py # 程序线程
+│   │   ├── clustering_thread.py # 程序线程
+│   │   └── pdf_report.pu   # 生成pdf文件
 │   └── config/              # 配置文件
 │       └── default_config.py # 默认配置
 ├── tests/                   # 测试代码

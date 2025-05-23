@@ -24,4 +24,3 @@ def plot_tsne(features, labels, save_path=None):
     if save_path:
         plt.savefig(save_path)
         print(f"图像已保存到 {save_path}")
-    plt.show()

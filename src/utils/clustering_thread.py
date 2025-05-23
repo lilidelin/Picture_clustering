@@ -7,6 +7,8 @@ import src.utils.visualization as Visualizer
 from PIL import Image
 import torch
 
+from src.utils.pdf_report import generate_pdf_report
+
 
 class ClusteringThread(QThread):
     progress_updated = pyqtSignal(int, str)  # 进度更新信号（进度值，状态信息）
@@ -66,6 +68,12 @@ class ClusteringThread(QThread):
             features = np.array(features)
             cluster_map = Visualizer.cluster_and_return_image_groups(features, image_files, self.folder, cluster_model)
             self.progress_updated.emit(90, "聚类完成，正在准备显示结果...")
+
+            # 生成 PDF 报告
+            labels = cluster_model.fit_predict(features)
+            pdf_save_path = 'clustering_report.pdf'
+            generate_pdf_report(cluster_map, self.folder, pdf_save_path, features, labels, cluster_model)
+            self.progress_updated.emit(95, f"PDF 报告已生成: {pdf_save_path}")
 
             # 返回结果
             self.progress_updated.emit(100, "完成")
