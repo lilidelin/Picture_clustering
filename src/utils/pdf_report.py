@@ -1,7 +1,7 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import  Image
+from reportlab.platypus import Image
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
@@ -123,29 +123,32 @@ def generate_pdf_report(cluster_map, image_folder, save_path, features, labels, 
     doc.drawString(100, height - 50, '聚类结果详情')
     doc.showPage()
 
-    # 每个聚类占一页
+    # 每页显示的图片数量和布局参数
+    images_per_row = 5  # 每行显示图片数
+    rows_per_page = 6   # 每页显示行数
+    thumbnail_size = 80  # 缩略图大小
+
+    # 每个聚类占一页或多页
     for label, images in sorted(cluster_map.items()):
-        y = height - 80
-        doc.setFont(chinese_font, 18)
-        doc.drawString(100, y, f'聚类类别 {label} ({len(images)}张图片)')
-
-        # 每页显示的图片数量和布局参数
-        images_per_row = 5  # 每行显示图片数
-        rows_per_page = 6  # 每页显示行数
-        thumbnail_size = 80  # 缩略图大小
-
-        # 计算需要的页数
+        # 计算当前聚类的图片总数和总页数
         total_images = len(images)
         images_per_page = images_per_row * rows_per_page
         total_pages = (total_images + images_per_page - 1) // images_per_page
 
+        # 绘制聚类标题（第一页）
+        doc.setFont(chinese_font, 18)
+        doc.drawString(100, height - 80, f'聚类类别 {label} ({total_images}张图片)')
+        current_y = height - 120  # 从标题下方开始绘制图片
+
+        # 为每个聚类创建独立的页
         for page in range(total_pages):
-            # 添加新页
-            doc.showPage()
-            y = height - 30
-            doc.setFont(chinese_font, 14)
-            doc.drawString(100, y, f'聚类类别 {label} (续)')
-            y -= 20
+            # 非第一页需要新建页并添加“续”标题
+            if page > 0:
+                doc.showPage()
+                current_y = height - 50
+                doc.setFont(chinese_font, 14)
+                doc.drawString(100, current_y, f'聚类类别 {label} (续)')
+                current_y -= 30  # 标题下方留出空间
 
             # 当前页显示的图片范围
             start_idx = page * images_per_page
@@ -159,12 +162,12 @@ def generate_pdf_report(cluster_map, image_folder, save_path, features, labels, 
 
                 # 计算图片位置
                 x_pos = 50 + col * (thumbnail_size + 20)
-                y_pos = y - (row + 1) * (thumbnail_size + 30)
+                y_pos = current_y - (row + 1) * (thumbnail_size + 30)
 
-                # # 添加图片文件名
+                # 添加图片文件名
                 img_name = images[i]
-                # doc.setFont(chinese_font, 9)
-                # doc.drawString(x_pos, y_pos + thumbnail_size + 5, img_name[:20] + ('...' if len(img_name) > 20 else ''))
+                doc.setFont(chinese_font, 9)
+                doc.drawString(x_pos, y_pos + thumbnail_size + 5, img_name[:20] + ('...' if len(img_name) > 20 else ''))
 
                 # 添加缩略图
                 img_path = os.path.join(image_folder, img_name)
@@ -172,8 +175,8 @@ def generate_pdf_report(cluster_map, image_folder, save_path, features, labels, 
                     # 创建缩略图
                     thumbnail = create_thumbnail(img_path, size=(thumbnail_size, thumbnail_size))
                     if thumbnail:
-                        # 保存临时缩略图文件
-                        temp_path = f"temp_thumb_{i}.jpg"
+                        # 保存临时缩略图文件（添加label作为前缀，确保唯一性）
+                        temp_path = f"temp_thumb_{label}_{i}.jpg"
                         thumbnail.save(temp_path, "JPEG")
 
                         # 添加到PDF
@@ -190,13 +193,16 @@ def generate_pdf_report(cluster_map, image_folder, save_path, features, labels, 
                     doc.setFont(chinese_font, 9)
                     doc.drawString(x_pos, y_pos + thumbnail_size / 2, f"错误: {str(e)[:15]}")
 
-            # 页脚：页码信息
+            # 更新当前y坐标，用于下一页的定位
+            current_y = y_pos - 50
+
+            # 页脚：页码信息（在每页底部添加）
             doc.setFont(chinese_font, 10)
             doc.drawCentredString(width / 2, 30, f"第 {page + 1}/{total_pages} 页")
 
-            # 如果不是最后一页，准备下一页
-            if end_idx < total_images:
-                y = height - 30
+        # 每个聚类结束后，确保下一个聚类从新页开始
+        if label != list(cluster_map.keys())[-1]:
+            doc.showPage()
 
     # 保存PDF
     doc.save()
